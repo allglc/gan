@@ -1,5 +1,6 @@
 import torch
 from torch import nn
+import torch.nn.functional as F
 
 
 class Generator_28(nn.Module):
@@ -163,6 +164,29 @@ class MLP(nn.Module):
         x = self.flatten(x)
         y = self.net(x)
         return y
+
+
+class CNN_MNIST(nn.Module):
+    ''' inspiration from https://github.com/pytorch/examples/blob/master/mnist/main.py'''
+    def __init__(self, image_channels=1, output_dim=10):
+        super().__init__()
+        kernel_size = 3
+        stride = 1
+        self.net = nn.Sequential(
+            nn.Conv2d(image_channels, 32, kernel_size, stride),
+            nn.BatchNorm2d(32),
+            nn.ReLU(inplace=True),
+            nn.Conv2d(32, 64, kernel_size, stride),
+            nn.BatchNorm2d(64),
+            nn.ReLU(inplace=True),
+            nn.MaxPool2d(2),
+            nn.Flatten(),
+            nn.Linear(9216, 128),
+            nn.Linear(128, output_dim)
+        )
+
+    def forward(self, x):
+        return self.net(x)
 
 
 class Discriminator_MNIST(nn.Module):
