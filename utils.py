@@ -1,6 +1,12 @@
+import os
 import torch
-from torchvision.utils import make_grid
+from torch import nn
+from torchvision.utils import make_grid, save_image
 import matplotlib.pyplot as plt
+from pathlib import Path
+from tqdm import tqdm
+import shutil
+from pytorch_fid import calculate_fid_given_paths
 
 
 def show_tensor_images(image_tensor, num_images=25, size=(1, 28, 28)):
@@ -149,3 +155,50 @@ def test(dataloader, model, loss_function, device):
     # print('Test error: {}\nAccuracy {}\n'.format(average_loss, average_accuracy))
 
     return average_loss, average_accuracy
+
+
+def compute_fid(gen, conditional=False, n_classes=10, path_target='', nb_images_to_generate = 10000, batch_size=1024, device='cuda'):
+
+    num_avail_cpus = num_avail_cpus = len(os.sched_getaffinity(0))
+
+    # 1. GENERATE AND SAVE IMAGES
+    Path('./.temp').mkdir() # create temporary directory
+
+    img_idx = 0
+    nb_batchs = nb_images_to_generate // batch_size
+    for i in tqdm(range(nb_batchs + 1), 'Generate and save images'):
+
+        if i == nb_batchs: batch_size = nb_images_to_generate % batch_size # handle last batch
+
+        # Create inputs
+        noise = torch.randn(batch_size, gen.z_dim, 1, 1, device=device)
+
+        if conditional:
+            label = torch.randint(0, n_classes, (batch_size, ))
+            one_hot_labels = nn.functional.one_hot(label.to(device), n_classes)[:,:,None,None]
+            noise = torch.cat((noise[:gen.z_dim-n_classes].float(), one_hot_labels.float()), dim=1)
+
+        # Generate images
+        with torch.no_grad():
+            fake = gen(noise).detach().cpu()
+
+        # Save images in temporary folder
+        for _ in range(len(fake)):
+            save_image(fake[i], path_target/f'{img_idx}.png')
+            img_idx += 1
+
+    # 2. COMPUTE FID
+    print('Compute FID')
+    fid = calculate_fid_given_paths(
+        paths=[path_target, './.temp'], 
+        batch_size=50,
+        device='cuda',
+        dims=2048,
+        num_workers=min(num_avail_cpus, 8))
+
+    print('FID: {:.2f}'.format(fid))
+
+    shutil.rmtree('./.temp') # remove temporary directory
+
+    return(fid)
+
