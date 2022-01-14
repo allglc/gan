@@ -6,7 +6,7 @@ import matplotlib.pyplot as plt
 from pathlib import Path
 from tqdm import tqdm
 import shutil
-from pytorch_fid import calculate_fid_given_paths
+from pytorch_fid.fid_score import calculate_fid_given_paths
 
 
 def show_tensor_images(image_tensor, num_images=25, size=(1, 28, 28)):
@@ -162,7 +162,9 @@ def compute_fid(gen, conditional=False, n_classes=10, path_target='', nb_images_
     num_avail_cpus = num_avail_cpus = len(os.sched_getaffinity(0))
 
     # 1. GENERATE AND SAVE IMAGES
-    Path('./.temp').mkdir() # create temporary directory
+    path_temp = Path('./temp')
+    if path_temp.exists(): shutil.rmtree(path_temp)
+    path_temp.mkdir() # create temporary directory
 
     img_idx = 0
     nb_batchs = nb_images_to_generate // batch_size
@@ -176,21 +178,21 @@ def compute_fid(gen, conditional=False, n_classes=10, path_target='', nb_images_
         if conditional:
             label = torch.randint(0, n_classes, (batch_size, ))
             one_hot_labels = nn.functional.one_hot(label.to(device), n_classes)[:,:,None,None]
-            noise = torch.cat((noise[:gen.z_dim-n_classes].float(), one_hot_labels.float()), dim=1)
+            noise = torch.cat((noise[:, :gen.z_dim-n_classes, :, :].float(), one_hot_labels.float()), dim=1)
 
         # Generate images
         with torch.no_grad():
             fake = gen(noise).detach().cpu()
 
         # Save images in temporary folder
-        for _ in range(len(fake)):
-            save_image(fake[i], path_target/f'{img_idx}.png')
+        for fake_idx in range(len(fake)):
+            save_image(fake[fake_idx], path_temp/f'{img_idx}.png')
             img_idx += 1
 
     # 2. COMPUTE FID
     print('Compute FID')
     fid = calculate_fid_given_paths(
-        paths=[path_target, './.temp'], 
+        paths=[path_target, str(path_temp)], 
         batch_size=50,
         device='cuda',
         dims=2048,
@@ -198,7 +200,7 @@ def compute_fid(gen, conditional=False, n_classes=10, path_target='', nb_images_
 
     print('FID: {:.2f}'.format(fid))
 
-    shutil.rmtree('./.temp') # remove temporary directory
+    shutil.rmtree(path_temp) # remove temporary directory
 
     return(fid)
 
