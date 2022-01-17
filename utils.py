@@ -193,7 +193,7 @@ def compute_fid(gen, conditional=False, n_classes=10, path_target='', nb_images_
     print('Compute FID')
     fid = calculate_fid_given_paths(
         paths=[path_target, str(path_temp)], 
-        batch_size=50,
+        batch_size=128,
         device='cuda',
         dims=2048,
         num_workers=min(num_avail_cpus, 8))
