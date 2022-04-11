@@ -154,7 +154,7 @@ def test(dataloader, model, loss_function, device):
     average_loss = cum_loss / len(dataloader)
     average_accuracy = correct_pred / len(dataloader.dataset)
 
-    # print('Test error: {}\nAccuracy {}\n'.format(average_loss, average_accuracy))
+    print('Test error: {}\nAccuracy {}\n'.format(average_loss, average_accuracy))
 
     return average_loss, average_accuracy
 
