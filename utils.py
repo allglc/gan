@@ -135,6 +135,8 @@ def get_gradient_penalty(crit, real, fake, epsilon):
 
 def test(dataloader, model, loss_function, device):
 
+    model.eval()
+
     cum_loss, correct_pred = 0, 0
     for X, y in dataloader:
 
